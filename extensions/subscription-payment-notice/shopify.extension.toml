@@ -1,0 +1,27 @@
+api_version = "2026-01"
+
+[[extensions]]
+name = "Subscription Line Item Notice"
+handle = "subscription-line-item-notice"
+type = "ui_extension"
+uid = "1c9fa9f9-169e-0c7e-3b0f-b5d2df152967"
+
+[[extensions.targeting]]
+module = "./src/CartLineNotice.jsx"
+target = "purchase.checkout.cart-line-item.render-after"
+
+[extensions.capabilities]
+api_access = true
+
+[[extensions]]
+name = "Subscription Payment Notice"
+handle = "subscription-global-notice"
+type = "ui_extension"
+uid = "2d8eb3a1-4f7c-1a9b-5e2d-c6e3fa263028"
+
+[[extensions.targeting]]
+module = "./src/GlobalPaymentNotice.jsx"
+target = "purchase.checkout.block.render"
+
+[extensions.capabilities]
+api_access = true
