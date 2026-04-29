@@ -30,14 +30,12 @@ const INTERVAL_DAYS = { DAY: 1, WEEK: 7, MONTH: 30, YEAR: 365 };
 function getDaysFromText(text) {
   if (!text) return null;
 
-  // "X day/week/month/year(s)" e.g. "1 month", "30 days", "6-month"
   const withNumber = text.match(/(\d+)\s*[- ]*(day|week|month|year)s?/i);
   if (withNumber) {
     const count = parseInt(withNumber[1], 10);
     return count * (INTERVAL_DAYS[withNumber[2].toUpperCase()] ?? 1);
   }
 
-  // Bare frequency words: "monthly", "weekly", "daily", "yearly", "quarterly"
   if (/\bmonthly\b/i.test(text)) return 30;
   if (/\bweekly\b/i.test(text)) return 7;
   if (/\bdaily\b/i.test(text)) return 1;
@@ -92,10 +90,23 @@ function CartLineNotice() {
       .catch(() => setApiDays(null));
   }, [planId, variantId]);
 
-  // Not a subscription — render nothing
-  if (!planId) return null;
+  // Recharge path: no native sellingPlan, detect via subtitle or attributes
+  if (!planId) {
+    const fallbackDays =
+      getDaysFromText(line?.merchandise?.subtitle) ??
+      getDaysFromAttributes(line?.attributes ?? []);
 
-  // Still loading API response
+    if (!fallbackDays) return null;
+
+    return (
+      <s-box padding-block-start="tight">
+        <s-text type="small" color="subdued">
+          ↻ Renews every {fallbackDays} days. Payments are automatic.
+        </s-text>
+      </s-box>
+    );
+  }
+
   if (apiDays === undefined) return null;
 
   const finalDays =

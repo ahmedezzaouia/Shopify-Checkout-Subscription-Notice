@@ -77,7 +77,13 @@ function GlobalPaymentNotice() {
   const linesKey = lines.map((l) => l.id).join(',');
 
   useEffect(() => {
-    const subscriptionLines = lines.filter((l) => l.merchandise?.sellingPlan?.id);
+    // Include lines detected via sellingPlan OR subtitle (Recharge uses subtitle, not sellingPlan)
+    const subscriptionLines = lines.filter(
+      (l) =>
+        l.merchandise?.sellingPlan?.id ||
+        getDaysFromAttributes(l.attributes ?? []) ||
+        getDaysFromText(l.merchandise?.subtitle),
+    );
 
     if (subscriptionLines.length === 0) {
       setResult({ hasSubscriptions: false, intervals: [] });
@@ -86,8 +92,16 @@ function GlobalPaymentNotice() {
 
     Promise.all(
       subscriptionLines.map((line) => {
-        const planId = line.merchandise.sellingPlan.id;
+        const planId = line.merchandise?.sellingPlan?.id;
         const variantId = line.merchandise?.id;
+
+        // Recharge path: no native sellingPlan, detect via subtitle or attributes
+        if (!planId) {
+          const days =
+            getDaysFromText(line.merchandise?.subtitle) ??
+            getDaysFromAttributes(line.attributes ?? []);
+          return Promise.resolve(days);
+        }
 
         if (!variantId) {
           return Promise.resolve(getDaysFromAttributes(line.attributes ?? []));
@@ -101,9 +115,16 @@ function GlobalPaymentNotice() {
             const bp = match?.sellingPlan?.billingPolicy;
 
             if (bp?.interval) return bp.intervalCount * INTERVAL_DAYS[bp.interval];
-            return getDaysFromText(match?.sellingPlan?.name) ?? getDaysFromAttributes(line.attributes ?? []);
+            return (
+              getDaysFromText(match?.sellingPlan?.name) ??
+              getDaysFromAttributes(line.attributes ?? []) ??
+              getDaysFromText(line.merchandise?.subtitle)
+            );
           })
-          .catch(() => getDaysFromAttributes(line.attributes ?? []));
+          .catch(() =>
+            getDaysFromAttributes(line.attributes ?? []) ??
+            getDaysFromText(line.merchandise?.subtitle),
+          );
       }),
     ).then((results) => {
       const intervals = [...new Set(results.filter(Boolean))].sort((a, b) => a - b);
@@ -114,9 +135,10 @@ function GlobalPaymentNotice() {
   if (!result) return null;
   if (!result.hasSubscriptions) return null;
 
-  const message = result.intervals.length > 0
-    ? buildMessage(result.intervals)
-    : 'Payments are taken automatically for your subscription items.';
+  const message =
+    result.intervals.length > 0
+      ? buildMessage(result.intervals)
+      : 'Payments are taken automatically for your subscription items.';
 
   return (
     <s-banner heading="Subscription payments" tone="info">
