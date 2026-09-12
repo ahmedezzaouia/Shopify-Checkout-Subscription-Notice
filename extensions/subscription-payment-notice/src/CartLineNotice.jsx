@@ -1,6 +1,23 @@
 import '@shopify/ui-extensions/preact';
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import { applyTemplate, intervalPlaceholders } from './applyTemplate';
+
+const NOTICE_WITH_DAYS =
+  'Renews every {{days}} days. Payments are automatic.';
+const NOTICE_WITHOUT_DAYS =
+  'Payments are taken automatically for your subscription.';
+
+/**
+ * Keeps the original ↻ icon when merchants replace the default copy.
+ *
+ * @param {string} message
+ * @returns {string}
+ */
+function withRenewalIcon(message) {
+  const text = String(message ?? '').replace(/^\s*↻\s*/, '').trim();
+  return text ? `↻ ${text}` : '↻';
+}
 
 const QUERY = `
   query ($variantId: ID!) {
@@ -63,6 +80,7 @@ export default async () => render(<CartLineNotice />, document.body);
 
 function CartLineNotice() {
   const line = shopify.target.value;
+  const settings = shopify.settings.value ?? {};
   const [apiDays, setApiDays] = useState(undefined);
 
   const planId = line?.merchandise?.sellingPlan?.id;
@@ -101,7 +119,13 @@ function CartLineNotice() {
     return (
       <s-box padding-block-start="tight">
         <s-text type="small" color="subdued">
-          ↻ Renews every {fallbackDays} days. Payments are automatic.
+          {withRenewalIcon(
+            applyTemplate(
+              settings.notice_with_days,
+              NOTICE_WITH_DAYS,
+              intervalPlaceholders(fallbackDays),
+            ),
+          )}
         </s-text>
       </s-box>
     );
@@ -114,13 +138,17 @@ function CartLineNotice() {
     getDaysFromAttributes(line?.attributes ?? []);
 
   const message = finalDays
-    ? `↻ Renews every ${finalDays} days. Payments are automatic.`
-    : '↻ Payments are taken automatically for your subscription.';
+    ? applyTemplate(
+        settings.notice_with_days,
+        NOTICE_WITH_DAYS,
+        intervalPlaceholders(finalDays),
+      )
+    : applyTemplate(settings.notice_without_days, NOTICE_WITHOUT_DAYS);
 
   return (
     <s-box padding-block-start="tight">
       <s-text type="small" color="subdued">
-        {message}
+        {withRenewalIcon(message)}
       </s-text>
     </s-box>
   );

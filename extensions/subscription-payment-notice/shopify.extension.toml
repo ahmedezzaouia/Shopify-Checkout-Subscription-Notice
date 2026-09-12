@@ -13,6 +13,25 @@ target = "purchase.checkout.cart-line-item.render-after"
 [extensions.capabilities]
 api_access = true
 
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "notice_with_days"
+type = "single_line_text_field"
+name = "Line item text"
+description = "Text under the product. Leave empty to keep the default. Put {{days}} or {{months}} where the number should go. Example: Renews every {{months}} months."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "255"
+
+[[extensions.settings.fields]]
+key = "notice_without_days"
+type = "single_line_text_field"
+name = "Backup line item text"
+description = "Used only if we cannot tell the renewal schedule. Leave empty to keep the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "255"
+
 [[extensions]]
 name = "Subscription Payment Notice"
 handle = "subscription-global-notice"
@@ -25,3 +44,31 @@ target = "purchase.checkout.block.render"
 
 [extensions.capabilities]
 api_access = true
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "heading"
+type = "single_line_text_field"
+name = "Title"
+description = "Banner title. Leave empty to use: Subscription payments"
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "80"
+
+[[extensions.settings.fields]]
+key = "message_single"
+type = "single_line_text_field"
+name = "Banner message"
+description = "Text in the banner. Leave empty to keep the default. Put {{days}} or {{months}} where the number should go. Example: We bill you every {{months}} months."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "255"
+
+[[extensions.settings.fields]]
+key = "message_fallback"
+type = "single_line_text_field"
+name = "Backup banner message"
+description = "Used only if we cannot tell the renewal schedule. Leave empty to keep the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "255"

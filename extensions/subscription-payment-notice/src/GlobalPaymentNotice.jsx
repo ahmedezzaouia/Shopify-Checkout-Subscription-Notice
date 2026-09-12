@@ -1,6 +1,13 @@
 import '@shopify/ui-extensions/preact';
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import { applyTemplate, intervalPlaceholders } from './applyTemplate';
+
+const DEFAULT_HEADING = 'Subscription payments';
+const DEFAULT_MESSAGE_SINGLE =
+  'Payments taken automatically every {{days}} days';
+const DEFAULT_MESSAGE_FALLBACK =
+  'Payments are taken automatically for your subscription items.';
 
 const QUERY = `
   query ($variantId: ID!) {
@@ -59,11 +66,18 @@ function getDaysFromAttributes(attrs) {
   return multiplier ? count * multiplier : null;
 }
 
-function buildMessage(intervals) {
+function buildMessage(intervals, settings) {
   if (intervals.length === 0) return null;
-  if (intervals.length === 1) return `Payments taken automatically every ${intervals[0]} days`;
 
-  const parts = intervals.map((d) => `every ${d} days`);
+  if (intervals.length === 1) {
+    return applyTemplate(
+      settings.message_single,
+      DEFAULT_MESSAGE_SINGLE,
+      intervalPlaceholders(intervals[0]),
+    );
+  }
+
+  const parts = intervals.map((days) => `every ${days} days`);
   const last = parts.pop();
   return `Payments taken automatically ${parts.join(', ')} and ${last}`;
 }
@@ -71,7 +85,8 @@ function buildMessage(intervals) {
 export default async () => render(<GlobalPaymentNotice />, document.body);
 
 function GlobalPaymentNotice() {
-  const lines = shopify.lines.value;
+  const lines = shopify.lines.value ?? [];
+  const settings = shopify.settings.value ?? {};
   const [result, setResult] = useState(null);
 
   const linesKey = lines.map((l) => l.id).join(',');
@@ -137,11 +152,12 @@ function GlobalPaymentNotice() {
 
   const message =
     result.intervals.length > 0
-      ? buildMessage(result.intervals)
-      : 'Payments are taken automatically for your subscription items.';
+      ? buildMessage(result.intervals, settings)
+      : applyTemplate(settings.message_fallback, DEFAULT_MESSAGE_FALLBACK);
+  const heading = applyTemplate(settings.heading, DEFAULT_HEADING);
 
   return (
-    <s-banner heading="Subscription payments" tone="info">
+    <s-banner heading={heading} tone="info">
       {message}
     </s-banner>
   );
