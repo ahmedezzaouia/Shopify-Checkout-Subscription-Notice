@@ -92,9 +92,13 @@ function CartLineNotice() {
       return;
     }
 
+    // Ignore responses from a previous run if the plan changed meanwhile
+    let stale = false;
+
     shopify
       .query(QUERY, { variables: { variantId } })
       .then(({ data }) => {
+        if (stale) return;
         const allocations = data?.node?.sellingPlanAllocations?.nodes ?? [];
         const match = allocations.find((a) => a.sellingPlan?.id === planId) ?? allocations[0];
         const bp = match?.sellingPlan?.billingPolicy;
@@ -105,31 +109,17 @@ function CartLineNotice() {
           setApiDays(getDaysFromText(match?.sellingPlan?.name) ?? null);
         }
       })
-      .catch(() => setApiDays(null));
+      .catch(() => {
+        if (!stale) setApiDays(null);
+      });
+
+    return () => {
+      stale = true;
+    };
   }, [planId, variantId]);
 
-  // Recharge path: no native sellingPlan, detect via subtitle or attributes
-  if (!planId) {
-    const fallbackDays =
-      getDaysFromText(line?.merchandise?.subtitle) ??
-      getDaysFromAttributes(line?.attributes ?? []);
-
-    if (!fallbackDays) return null;
-
-    return (
-      <s-box padding-block-start="tight">
-        <s-text type="small" color="subdued">
-          {withRenewalIcon(
-            applyTemplate(
-              settings.notice_with_days,
-              NOTICE_WITH_DAYS,
-              intervalPlaceholders(fallbackDays),
-            ),
-          )}
-        </s-text>
-      </s-box>
-    );
-  }
+  // Only native selling plan lines are subscriptions
+  if (!planId) return null;
 
   if (apiDays === undefined) return null;
 

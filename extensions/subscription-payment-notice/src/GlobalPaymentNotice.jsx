@@ -89,16 +89,16 @@ function GlobalPaymentNotice() {
   const settings = shopify.settings.value ?? {};
   const [result, setResult] = useState(null);
 
-  const linesKey = lines.map((l) => l.id).join(',');
+  const linesKey = lines
+    .map((l) => `${l.id}:${l.merchandise?.sellingPlan?.id ?? ''}`)
+    .join(',');
 
   useEffect(() => {
-    // Include lines detected via sellingPlan OR subtitle (Recharge uses subtitle, not sellingPlan)
-    const subscriptionLines = lines.filter(
-      (l) =>
-        l.merchandise?.sellingPlan?.id ||
-        getDaysFromAttributes(l.attributes ?? []) ||
-        getDaysFromText(l.merchandise?.subtitle),
-    );
+    // Ignore responses from a previous run if the lines changed meanwhile
+    let stale = false;
+
+    // Only native selling plan lines are subscriptions (Recharge uses native selling plans)
+    const subscriptionLines = lines.filter((l) => l.merchandise?.sellingPlan?.id);
 
     if (subscriptionLines.length === 0) {
       setResult({ hasSubscriptions: false, intervals: [] });
@@ -109,14 +109,6 @@ function GlobalPaymentNotice() {
       subscriptionLines.map((line) => {
         const planId = line.merchandise?.sellingPlan?.id;
         const variantId = line.merchandise?.id;
-
-        // Recharge path: no native sellingPlan, detect via subtitle or attributes
-        if (!planId) {
-          const days =
-            getDaysFromText(line.merchandise?.subtitle) ??
-            getDaysFromAttributes(line.attributes ?? []);
-          return Promise.resolve(days);
-        }
 
         if (!variantId) {
           return Promise.resolve(getDaysFromAttributes(line.attributes ?? []));
@@ -132,19 +124,20 @@ function GlobalPaymentNotice() {
             if (bp?.interval) return bp.intervalCount * INTERVAL_DAYS[bp.interval];
             return (
               getDaysFromText(match?.sellingPlan?.name) ??
-              getDaysFromAttributes(line.attributes ?? []) ??
-              getDaysFromText(line.merchandise?.subtitle)
+              getDaysFromAttributes(line.attributes ?? [])
             );
           })
-          .catch(() =>
-            getDaysFromAttributes(line.attributes ?? []) ??
-            getDaysFromText(line.merchandise?.subtitle),
-          );
+          .catch(() => getDaysFromAttributes(line.attributes ?? []));
       }),
     ).then((results) => {
+      if (stale) return;
       const intervals = [...new Set(results.filter(Boolean))].sort((a, b) => a - b);
       setResult({ hasSubscriptions: true, intervals });
     });
+
+    return () => {
+      stale = true;
+    };
   }, [linesKey]);
 
   if (!result) return null;
